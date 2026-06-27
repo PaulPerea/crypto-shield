@@ -1,0 +1,17 @@
+com\bcp\dac\identity\resource\IdentityResource$RegisterResponse.class
+com\bcp\dac\identity\resource\IdentityResource.class
+com\bcp\dac\identity\resource\IdentityResource$CryptoClientForIdentity$EncryptReq.class
+com\bcp\dac\identity\resource\IdentityResource$CryptoClientForIdentity.class
+com\bcp\dac\identity\resource\IdentityResource$CryptoClientForIdentity$ObfuscateResp.class
+com\bcp\dac\identity\resource\IdentityResource$IdentityDetails.class
+com\bcp\dac\identity\resource\IdentityResource$RegisterIdentityRequest.class
+com\bcp\dac\identity\resource\IdentityResource$StoredEnvelope.class
+com\bcp\dac\identity\resource\IdentityResource$ErrorResp.class
+com\bcp\dac\identity\resource\IdentityResource$StoredIdentity.class
+com\bcp\dac\identity\resource\IdentityResource$CryptoClientForIdentity$ObfuscateReq.class
+com\bcp\dac\identity\resource\IdentityResource$RevealResp.class
+com\bcp\dac\identity\resource\IdentityResource$CryptoClientForIdentity$DecryptResp.class
+com\bcp\dac\identity\resource\IdentityResource$CryptoClientForIdentity$DecryptReq.class
+com\bcp\dac\identity\resource\IdentityResource$IdentitySummary.class
+com\bcp\dac\identity\resource\IdentityResource$RevealReq.class
+com\bcp\dac\identity\resource\IdentityResource$CryptoClientForIdentity$EncryptResp.class
