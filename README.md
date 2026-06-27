@@ -1,41 +1,41 @@
 # DAC Crypto Demo
-## Arquitectura de Datos Sensibles con AES-256-GCM + RSA-2048-OAEP
+## Sensitive Data Architecture with AES-256-GCM + RSA-2048-OAEP
 ### Stack: Quarkus 3.9 · Java 21 · Maven 3.9.9
 
 ---
 
-## Índice
+## Table of Contents
 
-1. [Estructura del proyecto](#1-estructura-del-proyecto)
-2. [Pre-requisitos](#2-pre-requisitos)
-3. [Cómo levantar los servicios](#3-cómo-levantar-los-servicios)
-4. [Conceptos de cifrado explicados](#4-conceptos-de-cifrado-explicados)
-5. [Cómo funciona la ofuscación](#5-cómo-funciona-la-ofuscación)
-6. [Endpoints y curls manuales](#6-endpoints-y-curls-manuales)
-7. [Ejecutar el script completo de pruebas](#7-ejecutar-el-script-completo-de-pruebas)
-8. [Buenas prácticas aplicadas](#8-buenas-prácticas-aplicadas)
-9. [Diagrama del flujo de datos](#9-diagrama-del-flujo-de-datos)
+1. [Project Structure](#1-project-structure)
+2. [Prerequisites](#2-prerequisites)
+3. [How to Start the Services](#3-how-to-start-the-services)
+4. [Encryption Concepts Explained](#4-encryption-concepts-explained)
+5. [How Obfuscation Works](#5-how-obfuscation-works)
+6. [Endpoints and Manual Curls](#6-endpoints-and-manual-curls)
+7. [Running the Full Test Script](#7-running-the-full-test-script)
+8. [Applied Best Practices](#8-applied-best-practices)
+9. [Data Flow Diagram](#9-data-flow-diagram)
 
 ---
 
-## 1. Estructura del proyecto
+## 1. Project Structure
 
 ```
 dac-crypto-demo/
-├── pom.xml                          ← POM raíz (multi-módulo)
-├── test-api.sh                      ← Script de pruebas completo
+├── pom.xml                          ← Root POM (multi-module)
+├── test-api.sh                      ← Full test script
 │
-├── crypto-service/                  ← Puerto 8081
+├── crypto-service/                  ← Port 8081
 │   ├── pom.xml
 │   └── src/main/java/com/bcp/dac/crypto/
-│       ├── model/CryptoModels.java  ← Records de request/response
+│       ├── model/CryptoModels.java  ← Request/response records
 │       ├── service/
-│       │   ├── KeyStoreService.java ← Gestión de claves RSA
+│       │   ├── KeyStoreService.java ← RSA key management
 │       │   ├── CryptoService.java   ← AES-GCM + RSA-OAEP
-│       │   └── ObfuscationService.java ← Enmascaramiento
-│       └── resource/CryptoResource.java ← Endpoints REST
+│       │   └── ObfuscationService.java ← Masking
+│       └── resource/CryptoResource.java ← REST endpoints
 │
-├── account-service/                 ← Puerto 8082
+├── account-service/                 ← Port 8082
 │   ├── pom.xml
 │   └── src/main/java/com/bcp/dac/account/
 │       ├── client/CryptoClient.java ← REST Client → crypto-service
@@ -43,7 +43,7 @@ dac-crypto-demo/
 │       ├── service/AccountService.java
 │       └── resource/AccountResource.java
 │
-└── identity-service/                ← Puerto 8083
+└── identity-service/                ← Port 8083
     ├── pom.xml
     └── src/main/java/com/bcp/dac/identity/
         └── resource/IdentityResource.java
@@ -51,32 +51,32 @@ dac-crypto-demo/
 
 ---
 
-## 2. Pre-requisitos
+## 2. Prerequisites
 
-| Herramienta | Versión mínima | Verificar |
-|---|---|---|
-| Java JDK | 21 | `java --version` |
-| Maven | 3.9.x | `mvn --version` |
-| curl | cualquiera | `curl --version` |
-| jq | cualquiera | `jq --version` (opcional, para formato JSON) |
+| Tool      | Minimum Version | Check                                      |
+|-----------|-----------------|--------------------------------------------|
+| Java JDK  | 21              | `java --version`                           |
+| Maven     | 3.9.x           | `mvn --version`                            |
+| curl      | any             | `curl --version`                           |
+| jq        | any             | `jq --version` (optional, for JSON format) |
 
 ---
 
-## 3. Cómo levantar los servicios
+## 3. How to Start the Services
 
-Abrir **3 terminales** separadas.
+Open **3 separate terminals**.
 
-### Terminal 1 – Crypto Service (primero, siempre)
+### Terminal 1 – Crypto Service (always first)
 
 ```bash
 cd dac-crypto-demo/crypto-service
 mvn quarkus:dev
 ```
 
-Quarkus Dev Mode incluye:
-- Hot reload automático (cambios de código se aplican sin reiniciar)
-- Swagger UI en http://localhost:8081/swagger-ui
-- Dev UI en http://localhost:8081/q/dev
+Quarkus Dev Mode includes:
+- Automatic hot reload (code changes apply without restarting)
+- Swagger UI at http://localhost:8081/swagger-ui
+- Dev UI at http://localhost:8081/q/dev
 
 ### Terminal 2 – Account Service
 
@@ -92,7 +92,7 @@ cd dac-crypto-demo/identity-service
 mvn quarkus:dev
 ```
 
-### Verificar que todo está UP
+### Verify Everything is UP
 
 ```bash
 curl http://localhost:8081/health/live
@@ -102,74 +102,74 @@ curl http://localhost:8083/health/live
 
 ---
 
-## 4. Conceptos de cifrado explicados
+## 4. Encryption Concepts Explained
 
-### 4.1 AES-256-GCM (Cifrado simétrico)
+### 4.1 AES-256-GCM (Symmetric Encryption)
 
 **AES** = Advanced Encryption Standard  
-**256** = tamaño de clave en bits  
-**GCM** = Galois/Counter Mode (modo de operación)
+**256** = key size in bits  
+**GCM** = Galois/Counter Mode (operation mode)
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│  AES-256-GCM = Cifrado + Autenticación en un solo paso │
+│  AES-256-GCM = Encryption + Authentication in one step │
 │                                                        │
-│  Entradas:                                             │
+│  Inputs:                                               │
 │    plaintext  = "4111111111111234"                     │
-│    CEK        = 32 bytes aleatorios (clave secreta)    │
-│    IV         = 12 bytes aleatorios (único por op.)    │
+│    CEK        = 32 random bytes (secret key)           │
+│    IV         = 12 random bytes (unique per operation) │
 │                                                        │
-│  Salidas:                                              │
-│    ciphertext = bytes cifrados                         │
-│    authTag    = 16 bytes de firma de integridad        │
+│  Outputs:                                              │
+│    ciphertext = encrypted bytes                        │
+│    authTag    = 16-byte integrity signature            │
 │                                                        │
-│  Si alguien modifica el ciphertext → authTag inválido  │
-│  → descifrado falla → se detecta el tampering          │
+│  If someone modifies the ciphertext → invalid authTag  │
+│  → decryption fails → tampering is detected            │
 └────────────────────────────────────────────────────────┘
 ```
 
-**¿Por qué GCM y no CBC?**
-- CBC solo cifra. Si alguien modifica el ciphertext, no te enteras.
-- GCM cifra Y autentica (AEAD = Authenticated Encryption with Associated Data).
+**Why GCM and not CBC?**
+- CBC only encrypts. If someone modifies the ciphertext, you won't know.
+- GCM encrypts AND authenticates (AEAD = Authenticated Encryption with Associated Data).
 
-### 4.2 RSA-2048-OAEP (Cifrado asimétrico)
+### 4.2 RSA-2048-OAEP (Asymmetric Encryption)
 
 **RSA** = Rivest–Shamir–Adleman  
-**2048** = tamaño de clave en bits  
+**2048** = key size in bits  
 **OAEP** = Optimal Asymmetric Encryption Padding
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│  CÓMO FUNCIONA EL PAR DE CLAVES                        │
+│  HOW THE KEY PAIR WORKS                                │
 │                                                        │
-│  K-pub (pública): TODOS pueden usarla para cifrar      │
-│  K-priv (privada): SOLO el dueño puede descifrar       │
+│  K-pub (public):  ANYONE can use it to encrypt         │
+│  K-priv (private): ONLY the owner can decrypt          │
 │                                                        │
-│  Cifrar con K-pub:                                     │
+│  Encrypt with K-pub:                                   │
 │    RSA_OAEP(CEK, K-pub) → encryptedCek                 │
 │                                                        │
-│  Descifrar con K-priv:                                 │
+│  Decrypt with K-priv:                                  │
 │    RSA_OAEP(encryptedCek, K-priv) → CEK               │
 │                                                        │
-│  Si alguien intercepta encryptedCek:                   │
-│    Sin K-priv → no puede obtener la CEK               │
-│    Sin la CEK → no puede descifrar el dato             │
+│  If someone intercepts encryptedCek:                   │
+│    Without K-priv → cannot obtain the CEK             │
+│    Without the CEK → cannot decrypt the data           │
 └────────────────────────────────────────────────────────┘
 ```
 
-**¿Por qué no usar RSA para cifrar el dato directamente?**
-- RSA-2048 solo puede cifrar ~190 bytes. Un JSON puede ser mayor.
-- RSA es ~1000x más lento que AES.
-- Solución: AES cifra el dato (rápido), RSA cifra solo la clave AES (pequeña).
+**Why not use RSA to encrypt the data directly?**
+- RSA-2048 can only encrypt ~190 bytes. A JSON payload may be larger.
+- RSA is ~1000x slower than AES.
+- Solution: AES encrypts the data (fast), RSA encrypts only the AES key (small).
 
-### 4.3 Envelope Encryption (la combinación)
+### 4.3 Envelope Encryption (the combination)
 
 ```
-CIFRADO:
+ENCRYPTION:
   plaintext = "4111111111111234"
        │
-       ├─► [1] Generar CEK aleatoria (AES-256, 32 bytes, efímera)
-       │         CEK = a1b2c3d4e5f6... (nunca repetida)
+       ├─► [1] Generate random CEK (AES-256, 32 bytes, ephemeral)
+       │         CEK = a1b2c3d4e5f6... (never reused)
        │
        ├─► [2] AES_GCM(plaintext, CEK, IV) → ciphertext + authTag
        │
@@ -177,49 +177,49 @@ CIFRADO:
        │
        └─► [4] Envelope = {
                  encryptedCek,  ← RSA(CEK)
-                 ciphertext,    ← AES(dato)
-                 iv,            ← vector de inicialización
-                 authTag,       ← sello de integridad
+                 ciphertext,    ← AES(data)
+                 iv,            ← initialization vector
+                 authTag,       ← integrity seal
                  keyId          ← "rsa-key-v1"
                }
 
-DESCIFRADO (solo con K-priv):
+DECRYPTION (only with K-priv):
   Envelope → RSA_OAEP(encryptedCek, K-priv) → CEK
            → AES_GCM(ciphertext, CEK, iv, authTag) → plaintext
 ```
 
-**¿Por qué CEK efímera?**
-Si una CEK se compromete, solo **UN** dato queda expuesto.
-Con una sola clave para todo, un compromiso expone **TODO**.
+**Why an ephemeral CEK?**  
+If a CEK is compromised, only **ONE** piece of data is exposed.  
+With a single key for everything, one compromise exposes **EVERYTHING**.
 
 ---
 
-## 5. Cómo funciona la ofuscación
+## 5. How Obfuscation Works
 
-La ofuscación es **enmascaramiento visual**, NO cifrado.
+Obfuscation is **visual masking**, NOT encryption.
 
-| Tipo | Input | Output | Técnica |
-|---|---|---|---|
-| CARD_NUMBER | 4111111111111234 | 411111\*\*\*\*\*\*1234 | PCI-DSS: primeros 6 + últimos 4 |
-| ACCOUNT_NUMBER | 19302938471923 | \*\*\*\*\*\*\*\*\*\*1923 | Últimos 4 visibles |
-| NATIONAL_ID | 12345678 | \*\*\*\*5678 | Últimos 4 visibles |
-| EMAIL | juan@gmail.com | j\*\*\*n@gmail.com | Primer + último carácter de la parte local |
+| Type           | Input            | Output                 | Technique                            |
+|----------------|------------------|------------------------|--------------------------------------|
+| CARD_NUMBER    | 4111111111111234 | 411111\*\*\*\*\*\*1234 | PCI-DSS: first 6 + last 4 digits    |
+| ACCOUNT_NUMBER | 19302938471923   | \*\*\*\*\*\*\*\*\*\*1923 | Last 4 digits visible              |
+| NATIONAL_ID    | 12345678         | \*\*\*\*5678           | Last 4 digits visible                |
+| EMAIL          | juan@gmail.com   | j\*\*\*n@gmail.com     | First + last char of the local part  |
 
-**Cuándo usar cada uno:**
+**When to use each:**
 
-| Herramienta | Cuándo usar |
-|---|---|
-| Cifrado | Cuando necesitas recuperar el dato original |
-| Ofuscación | Para logs, trazas, UI (no necesitas recuperar) |
-| Hash SHA-256 | Para búsquedas sin exponer el dato (email search) |
+| Tool         | When to use                                           |
+|--------------|-------------------------------------------------------|
+| Encryption   | When you need to recover the original data            |
+| Obfuscation  | For logs, traces, UI (no recovery needed)             |
+| SHA-256 Hash | For searches without exposing the data (email lookup) |
 
 ---
 
-## 6. Endpoints y curls manuales
+## 6. Endpoints and Manual Curls
 
-### 6.1 Crypto Service (puerto 8081)
+### 6.1 Crypto Service (port 8081)
 
-#### Cifrar un número de tarjeta
+#### Encrypt a card number
 
 ```bash
 curl -X POST http://localhost:8081/api/v1/crypto/encrypt \
@@ -227,11 +227,11 @@ curl -X POST http://localhost:8081/api/v1/crypto/encrypt \
   -d '{
     "plaintext": "4111111111111234",
     "dataType": "CARD_NUMBER",
-    "contextInfo": "pago-compra-001"
+    "contextInfo": "purchase-payment-001"
   }'
 ```
 
-**Respuesta:**
+**Response:**
 ```json
 {
   "encryptedCek": "TW96aSBGaXJlZm94...(Base64, ~344 chars)",
@@ -244,23 +244,23 @@ curl -X POST http://localhost:8081/api/v1/crypto/encrypt \
 }
 ```
 
-#### Descifrar el envelope
+#### Decrypt the envelope
 
 ```bash
-# Usar los valores del paso anterior
+# Use the values from the previous step
 curl -X POST http://localhost:8081/api/v1/crypto/decrypt \
   -H "Content-Type: application/json" \
   -d '{
-    "encryptedCek": "<encryptedCek del paso anterior>",
-    "ciphertext":   "<ciphertext del paso anterior>",
-    "iv":           "<iv del paso anterior>",
-    "authTag":      "<authTag del paso anterior>",
+    "encryptedCek": "<encryptedCek from previous step>",
+    "ciphertext":   "<ciphertext from previous step>",
+    "iv":           "<iv from previous step>",
+    "authTag":      "<authTag from previous step>",
     "keyId":        "rsa-key-v1",
     "dataType":     "CARD_NUMBER"
   }'
 ```
 
-**Respuesta:**
+**Response:**
 ```json
 {
   "plaintext":         "4111111111111234",
@@ -270,7 +270,7 @@ curl -X POST http://localhost:8081/api/v1/crypto/decrypt \
 }
 ```
 
-#### Ofuscar un email
+#### Obfuscate an email
 
 ```bash
 curl -X POST http://localhost:8081/api/v1/crypto/obfuscate \
@@ -281,9 +281,9 @@ curl -X POST http://localhost:8081/api/v1/crypto/obfuscate \
   }'
 ```
 
-### 6.2 Account Service (puerto 8082)
+### 6.2 Account Service (port 8082)
 
-#### Crear cuenta
+#### Create account
 
 ```bash
 curl -X POST http://localhost:8082/api/v1/accounts \
@@ -296,20 +296,20 @@ curl -X POST http://localhost:8082/api/v1/accounts \
   }'
 ```
 
-#### Listar cuentas
+#### List accounts
 
 ```bash
 curl http://localhost:8082/api/v1/accounts
 ```
 
-#### Consultar cuenta por ID
+#### Get account by ID
 
 ```bash
-# Reemplazar {accountId} con el ID obtenido al crear
+# Replace {accountId} with the ID obtained when creating
 curl http://localhost:8082/api/v1/accounts/{accountId}
 ```
 
-#### Revelar número de cuenta (operación privilegiada)
+#### Reveal account number (privileged operation)
 
 ```bash
 curl -X POST http://localhost:8082/api/v1/accounts/{accountId}/reveal \
@@ -317,7 +317,7 @@ curl -X POST http://localhost:8082/api/v1/accounts/{accountId}/reveal \
   -d '{"field": "accountNumber"}'
 ```
 
-#### Revelar número de tarjeta
+#### Reveal card number
 
 ```bash
 curl -X POST http://localhost:8082/api/v1/accounts/{accountId}/reveal \
@@ -325,9 +325,9 @@ curl -X POST http://localhost:8082/api/v1/accounts/{accountId}/reveal \
   -d '{"field": "cardNumber"}'
 ```
 
-### 6.3 Identity Service (puerto 8083)
+### 6.3 Identity Service (port 8083)
 
-#### Registrar identidad
+#### Register identity
 
 ```bash
 curl -X POST http://localhost:8083/api/v1/identities \
@@ -339,13 +339,13 @@ curl -X POST http://localhost:8083/api/v1/identities \
   }'
 ```
 
-#### Listar identidades
+#### List identities
 
 ```bash
 curl http://localhost:8083/api/v1/identities
 ```
 
-#### Revelar DNI
+#### Reveal national ID
 
 ```bash
 curl -X POST http://localhost:8083/api/v1/identities/{identityId}/reveal \
@@ -353,7 +353,7 @@ curl -X POST http://localhost:8083/api/v1/identities/{identityId}/reveal \
   -d '{"field": "nationalId"}'
 ```
 
-#### Revelar Email
+#### Reveal Email
 
 ```bash
 curl -X POST http://localhost:8083/api/v1/identities/{identityId}/reveal \
@@ -363,83 +363,83 @@ curl -X POST http://localhost:8083/api/v1/identities/{identityId}/reveal \
 
 ---
 
-## 7. Ejecutar el script completo de pruebas
+## 7. Running the Full Test Script
 
 ```bash
-# Dar permisos de ejecución
+# Grant execution permissions
 chmod +x test-api.sh
 
-# Ejecutar (requiere los 3 servicios UP)
+# Run (requires all 3 services UP)
 ./test-api.sh
 ```
 
-El script ejecuta en orden:
-1. Health checks de los 3 servicios
-2. Pruebas de ofuscación (4 tipos de dato)
-3. Cifrado y descifrado directo + prueba de tampering
-4. Flujo completo del Account Service
-5. Flujo completo del Identity Service
-6. Muestra URLs de Swagger UI
+The script runs in order:
+1. Health checks for all 3 services
+2. Obfuscation tests (4 data types)
+3. Direct encryption and decryption + tampering test
+4. Full Account Service flow
+5. Full Identity Service flow
+6. Displays Swagger UI URLs
 
 ---
 
-## 8. Buenas prácticas aplicadas
+## 8. Applied Best Practices
 
-### Seguridad
-- **Nunca loguear datos sensibles en claro**: todos los logs usan `maskedPreview`
-- **CEK efímera por operación**: compromiso localizado
-- **IV aleatorio único**: nunca reutilizar IV con la misma clave
-- **AES-GCM sobre AES-CBC**: autenticación integrada
-- **RSA-OAEP sobre RSA-PKCS1v1.5**: resistente a Bleichenbacher
-- **SecureRandom**: nunca usar `Math.random()` ni `new Random()` para criptografía
-- **char[] sobre String**: los datos descifrados en memoria deberían poder hacerse zero-out (String es inmutable en Java)
+### Security
+- **Never log sensitive data in plaintext**: all logs use `maskedPreview`
+- **Ephemeral CEK per operation**: breach impact is localized
+- **Unique random IV**: never reuse an IV with the same key
+- **AES-GCM over AES-CBC**: built-in authentication
+- **RSA-OAEP over RSA-PKCS1v1.5**: resistant to Bleichenbacher attacks
+- **SecureRandom**: never use `Math.random()` or `new Random()` for cryptography
+- **char[] over String**: decrypted data in memory should be zero-outable (String is immutable in Java)
 
-### Diseño de código
-- **Java 21 Records**: modelos inmutables por diseño
-- **@ApplicationScoped**: singletons para servicios stateful (KeyStore)
-- **Excepciones de dominio**: `CryptoException`, `AccountNotFoundException` en lugar de exponer excepciones de la JCA
-- **Validación con @Valid + @NotBlank**: nunca confiar en el input del cliente
-- **Versión en URL** (`/api/v1/`): facilita evolución sin romper clientes
-- **Separación de capas**: Resource → Service → Client (hexagonal simplificado)
+### Code Design
+- **Java 21 Records**: immutable models by design
+- **@ApplicationScoped**: singletons for stateful services (KeyStore)
+- **Domain exceptions**: `CryptoException`, `AccountNotFoundException` instead of exposing JCA exceptions
+- **Validation with @Valid + @NotBlank**: never trust client input
+- **Version in URL** (`/api/v1/`): enables evolution without breaking clients
+- **Layer separation**: Resource → Service → Client (simplified hexagonal)
 
-### Observabilidad
-- **Logs estructurados** con nivel y clase
-- **maskedPreview** en todas las operaciones de audit
-- **Swagger UI** habilitado para desarrollo (`quarkus.swagger-ui.always-include=true`)
-- **Health checks** liveness + readiness con SmallRye Health
+### Observability
+- **Structured logs** with level and class
+- **maskedPreview** in all audit operations
+- **Swagger UI** enabled for development (`quarkus.swagger-ui.always-include=true`)
+- **Health checks** liveness + readiness with SmallRye Health
 
-### Lo que falta para producción (intencionalmente simplificado)
-- Autenticación JWT en todos los endpoints
-- HashiCorp Vault / Azure Key Vault reales (aquí se simula en memoria)
-- Persistencia real con JPA/Panache + base de datos
-- mTLS entre microservicios
-- Rate limiting en endpoints `/reveal`
-- OpenTelemetry para trazas distribuidas
-- Rotación automática de claves
+### What's Missing for Production (intentionally simplified)
+- JWT authentication on all endpoints
+- Real HashiCorp Vault / Azure Key Vault (simulated in-memory here)
+- Real persistence with JPA/Panache + database
+- mTLS between microservices
+- Rate limiting on `/reveal` endpoints
+- OpenTelemetry for distributed tracing
+- Automatic key rotation
 
 ---
 
-## 9. Diagrama del flujo de datos
+## 9. Data Flow Diagram
 
 ```
-Cliente (Browser/App)
+Client (Browser/App)
        │  HTTPS/TLS 1.3
        ▼
   Account Service (8082)
        │
-       ├─► 1. Recibe { accountNumber: "193029...", cardNumber: "4111..." }
+       ├─► 1. Receives { accountNumber: "193029...", cardNumber: "4111..." }
        │
-       ├─► 2. Llama Crypto Service:  POST /encrypt { plaintext: "193029..." }
-       │         Crypto Service devuelve: { encryptedCek, ciphertext, iv, authTag, keyId }
+       ├─► 2. Calls Crypto Service:  POST /encrypt { plaintext: "193029..." }
+       │         Crypto Service returns: { encryptedCek, ciphertext, iv, authTag, keyId }
        │
-       ├─► 3. Llama Crypto Service:  POST /encrypt { plaintext: "4111..." }
-       │         Crypto Service devuelve: { encryptedCek, ciphertext, iv, authTag, keyId }
+       ├─► 3. Calls Crypto Service:  POST /encrypt { plaintext: "4111..." }
+       │         Crypto Service returns: { encryptedCek, ciphertext, iv, authTag, keyId }
        │
-       ├─► 4. Persiste SOLO los envelopes cifrados (nunca el dato en claro)
+       ├─► 4. Persists ONLY the encrypted envelopes (never plaintext data)
        │
-       └─► 5. Devuelve al cliente: { maskedAccountNumber: "**1923", maskedCardNumber: "411111**1234" }
+       └─► 5. Returns to client: { maskedAccountNumber: "**1923", maskedCardNumber: "411111**1234" }
 
-Consulta posterior:
-  GET /accounts/{id}  →  devuelve datos enmascarados + envelopes cifrados
-  POST /accounts/{id}/reveal  →  llama Crypto Service para descifrar
+Subsequent query:
+  GET /accounts/{id}  →  returns masked data + encrypted envelopes
+  POST /accounts/{id}/reveal  →  calls Crypto Service to decrypt
 ```
